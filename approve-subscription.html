@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Liberar Assinatura</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 shadow-2xl">
+            <h1 class="text-3xl font-bold text-white mb-6">🔐 Painel Admin - Liberar Assinatura</h1>
+            
+            <div class="space-y-6">
+                <!-- Approve Subscription Form -->
+                <div class="bg-white/5 rounded-xl p-6 border border-white/10">
+                    <h2 class="text-xl font-semibold text-white mb-4">Aprovar Assinatura Manualmente</h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-slate-300 mb-2">ID do Trainer</label>
+                            <input 
+                                type="number" 
+                                id="trainerId" 
+                                placeholder="Ex: 1"
+                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-400"
+                            />
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-300 mb-2">Senha Admin</label>
+                            <input 
+                                type="password" 
+                                id="adminSecret" 
+                                placeholder="nexus_admin_2024"
+                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-400"
+                            />
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-300 mb-2">Valor do Pagamento (Opcional)</label>
+                            <input 
+                                type="number" 
+                                id="paymentAmount" 
+                                placeholder="150.00"
+                                step="0.01"
+                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-400"
+                            />
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-300 mb-2">Observações (Opcional)</label>
+                            <textarea 
+                                id="notes" 
+                                placeholder="Ex: Pagamento confirmado via WhatsApp"
+                                rows="3"
+                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-400"
+                            ></textarea>
+                        </div>
+
+                        <button 
+                            onclick="approveSubscription()"
+                            class="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold rounded-xl transition-all shadow-lg"
+                        >
+                            ✅ Aprovar e Liberar Acesso
+                        </button>
+                    </div>
+                </div>
+
+                <!-- List Subscriptions -->
+                <div class="bg-white/5 rounded-xl p-6 border border-white/10">
+                    <h2 class="text-xl font-semibold text-white mb-4">Listar Todas as Assinaturas</h2>
+                    
+                    <button 
+                        onclick="listSubscriptions()"
+                        class="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold rounded-xl transition-all shadow-lg mb-4"
+                    >
+                        📋 Ver Todas as Assinaturas
+                    </button>
+
+                    <div id="subscriptionsList" class="space-y-2"></div>
+                </div>
+
+                <!-- Result Message -->
+                <div id="resultMessage" class="hidden p-4 rounded-xl"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function approveSubscription() {
+            const trainerId = parseInt(document.getElementById('trainerId').value);
+            const adminSecret = document.getElementById('adminSecret').value;
+            const paymentAmount = parseFloat(document.getElementById('paymentAmount').value) || 150.00;
+            const notes = document.getElementById('notes').value;
+
+            if (!trainerId || !adminSecret) {
+                showMessage('❌ Preencha o ID do Trainer e a Senha Admin', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/subscription/approve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        trainerId,
+                        adminSecret,
+                        paymentAmount,
+                        notes: notes || undefined
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(`✅ Sucesso! Assinatura do Trainer ${trainerId} foi aprovada e o acesso foi liberado.`, 'success');
+                    // Clear form
+                    document.getElementById('trainerId').value = '';
+                    document.getElementById('paymentAmount').value = '';
+                    document.getElementById('notes').value = '';
+                } else {
+                    showMessage(`❌ Erro: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`❌ Erro: ${error.message}`, 'error');
+            }
+        }
+
+        async function listSubscriptions() {
+            const adminSecret = document.getElementById('adminSecret').value;
+
+            if (!adminSecret) {
+                showMessage('❌ Preencha a Senha Admin primeiro', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/subscriptions/list', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ adminSecret })
+                });
+
+                const subscriptions = await response.json();
+
+                if (response.ok) {
+                    const listDiv = document.getElementById('subscriptionsList');
+                    listDiv.innerHTML = subscriptions.map(sub => `
+                        <div class="bg-white/10 rounded-lg p-4 border border-white/20">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-white font-semibold">Trainer ID: ${sub.trainer_id}</p>
+                                    <p class="text-slate-300 text-sm">${sub.trainer_name || 'Nome não disponível'}</p>
+                                    <p class="text-slate-400 text-xs">${sub.trainer_email || ''}</p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="px-3 py-1 rounded-full text-xs font-medium ${
+                                        sub.status === 'ativo' ? 'bg-green-500/20 text-green-300' :
+                                        sub.status === 'pendente' ? 'bg-yellow-500/20 text-yellow-300' :
+                                        'bg-red-500/20 text-red-300'
+                                    }">${sub.status}</span>
+                                    <p class="text-slate-400 text-xs mt-1">R$ ${sub.plan_price?.toFixed(2) || '0.00'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                    showMessage(`✅ ${subscriptions.length} assinaturas encontradas`, 'success');
+                } else {
+                    showMessage(`❌ Erro ao listar assinaturas`, 'error');
+                }
+            } catch (error) {
+                showMessage(`❌ Erro: ${error.message}`, 'error');
+            }
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('resultMessage');
+            messageDiv.className = type === 'success' 
+                ? 'p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-green-100'
+                : 'p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-100';
+            messageDiv.textContent = message;
+            messageDiv.classList.remove('hidden');
+            
+            setTimeout(() => {
+                messageDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Auto-fill admin secret if in URL hash
+        window.addEventListener('load', () => {
+            const hash = window.location.hash.substring(1);
+            if (hash) {
+                document.getElementById('adminSecret').value = hash;
+            }
+        });
+    </script>
+</body>
+</html>
